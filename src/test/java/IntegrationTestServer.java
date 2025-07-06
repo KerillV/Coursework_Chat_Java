@@ -41,7 +41,6 @@ public class IntegrationTestServer {
                 .start();
     }
 
-
     // метод @AfterAll выполняется после завершения всех тестов
     @AfterAll
     // Метод stopServer(): очищает окружение, разрушая запущенный серверный процесс
@@ -78,8 +77,8 @@ public class IntegrationTestServer {
         out2.println("User2");
 
         // Ожидается подтверждение регистрации в виде сообщения вида
-        assertEquals("[User1 joined the chat]", in1.readLine());
-        assertEquals("[User2 joined the chat]", in2.readLine());
+        assertEquals("[User1 присоединился к чату]", in1.readLine());
+        assertEquals("[User2 присоединился к чату]", in2.readLine());
 
         // Отправка сообщений, клиент отправляет сообщение другому участнику чата
         out1.println("Hello from User1!");
@@ -94,8 +93,8 @@ public class IntegrationTestServer {
         out2.println("/exit");
 
         // ожидается соответствующее уведомление от сервера о выходе пользователя
-        assertEquals("[User1 left the chat]", in1.readLine());
-        assertEquals("[User2 left the chat]", in2.readLine());
+        assertEquals("[User1 покинул чат]", in1.readLine());
+        assertEquals("[User2 покинул чат]", in2.readLine());
 
         // Ожидаем некоторое время, чтобы сервер завершил операции
         TimeUnit.SECONDS.sleep(1);

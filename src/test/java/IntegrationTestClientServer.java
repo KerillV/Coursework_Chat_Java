@@ -53,7 +53,7 @@ public class IntegrationTestClientServer {
 
         // Регистрация пользователя
         output.println("Alice");
-        assertEquals("[Alice joined the chat]", input.readLine());
+        assertEquals("[Alice присоединилась к чату.]", input.readLine());
 
         // Отправка сообщения
         output.println("Hello everyone!");
@@ -61,7 +61,7 @@ public class IntegrationTestClientServer {
 
         // Выход из чата
         output.println("/exit");
-        assertEquals("[Alice left the chat]", input.readLine());
+        assertEquals("[Alice вышла из чата.]", input.readLine());
 
         // Ожидание освобождения ресурсов
         TimeUnit.SECONDS.sleep(1);

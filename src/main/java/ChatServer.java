@@ -6,6 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -87,7 +88,9 @@ public class ChatServer {
     // Метод добавляет запись в файл журнала, дополняя его существующими данными
     private void appendLog(String entry) {
         try {
-            Files.writeString(Path.of(LOG_FILE_NAME), entry, StandardOpenOption.APPEND);
+            // Явно указываем путь к файлу
+            Path logPath = Paths.get("C:\\Users\\Кирилл\\Desktop\\Coursework_Chat_Java\\file.log");
+            Files.writeString(logPath, entry + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException ex) {
             System.err.println("Ошибка записи в лог-файл: " + ex.getMessage());
         }
