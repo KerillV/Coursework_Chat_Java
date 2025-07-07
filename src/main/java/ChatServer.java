@@ -20,6 +20,7 @@ public class ChatServer {
     private final Map<String, PrintWriter> clients = new HashMap<>();
     private final int PORT; // порт, на котором сервер будет ждать подключения
     private final String LOG_FILE_NAME = "file.log"; // имя файла журнала
+    private ServerSocket serverSocket;
 
     public ChatServer(int port) {
         // конструктор принимает port и инициализирует
@@ -29,14 +30,20 @@ public class ChatServer {
     public void run() throws Exception {
         // ServerSocket позволяет организовать прием входящих TCP/IP соединений
         // создаем объект, ожидающий входящих соединений на заданном порту
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) { // блок try для автоматической очистки ресурсов после завершения работы
-            System.out.println("Сервер стартовал на порте " + PORT);
+        try {
+            serverSocket = new ServerSocket(PORT);
+            serverSocket.setReuseAddress(true); // Разрешаем повторное использование адреса и порта
+            System.out.println("Сервер запущен на порте " + PORT);
 
-            while (true) {
-                /* Основное тело метода бесконечно ждёт поступления новых соединений от клиентов.
+            while (!serverSocket.isClosed()) {
+            /* Основное тело метода бесконечно ждёт поступления новых соединений от клиентов.
                 Каждое соединение порождает новый поток для обслуживания конкретного клиента */
                 Socket socket = serverSocket.accept();
                 new Thread(() -> handleClient(socket)).start();
+            }
+        } finally {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
             }
         }
     }
@@ -64,8 +71,12 @@ public class ChatServer {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)
         ) {
-            String username = reader.readLine(); // читаем первую строку, посланную клиентом, интерпретируя её как имя пользователя
-            clients.put(username, writer); // регистрируем пользователя в списке активных клиентов
+            String username = reader.readLine().trim(); // Прочитайте строку и удалите пробелы
+            if (username.isEmpty()) {
+                System.out.println("Отказано в регистрации: Имя пользователя не предоставлено");
+                return; // Закрываем соединение сразу
+            }
+            clients.put(username, writer);
             System.out.println("Пользователь '" + username + "' присоединился.");
 
             /* Циклически читаем сообщения от клиента, пока тот не пошлет команду /exit. Все принятые
@@ -84,16 +95,37 @@ public class ChatServer {
             System.err.println("Ошибка при обработке клиента: " + ex.getMessage());
         }
     }
-
     // Метод добавляет запись в файл журнала, дополняя его существующими данными
     private void appendLog(String entry) {
         try {
-            // Явно указываем путь к файлу
-            Path logPath = Paths.get("C:\\Users\\Кирилл\\Desktop\\Coursework_Chat_Java\\file.log");
+            Path logDir = Paths.get("log");
+            if (!Files.exists(logDir)) {
+                Files.createDirectories(logDir); // создаем директорию log, если её ещё нет
+            }
+
+            Path logPath = logDir.resolve("file.log");
             Files.writeString(logPath, entry + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException ex) {
             System.err.println("Ошибка записи в лог-файл: " + ex.getMessage());
         }
+    }
+
+    public void stop() {
+        if (serverSocket != null && !serverSocket.isClosed()) {
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void addLogEntry(String entry) {
+        appendLog(entry);
+    }
+
+    public void sendMessage(String sender, String message) {
+        broadcast(sender, message);
     }
 
     // Главная точка входа приложения.
@@ -105,7 +137,8 @@ public class ChatServer {
     }
 
     // Метод читает число из файла настроек и возвращает его в виде целочисленного значения
-    private static int readPortFromSettings(String filename) throws IOException {
-        return Integer.parseInt(Files.readString(Path.of(filename)));
+    public static int readPortFromSettings(String filename) throws IOException {
+        String content = Files.readString(Path.of(filename));
+        return Integer.parseInt(content.trim()); // trim() уберёт пробелы и переводы строки
     }
 }

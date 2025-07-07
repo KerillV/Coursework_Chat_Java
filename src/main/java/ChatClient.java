@@ -20,6 +20,7 @@ public class ChatClient {
     private final int SERVER_PORT;
     private final String USERNAME;
     private final String LOG_FILE_NAME = "file.log";
+    private Socket socket;
 
     // Булевская переменная для контроля активности клиента
     private volatile boolean running = true;
@@ -30,13 +31,24 @@ public class ChatClient {
         this.SERVER_PORT = port;
         this.USERNAME = username;
     }
+    public Socket getSocket() {
+        return socket;
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    public void logEntry(String entry) {
+        appendLog(entry);
+    }
 
     /*
     Основная точка входа для запуска клиента: соединение с сервером, авторизация и последующий обмен сообщениями
     */
     public void run() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT)) {
+        try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT)) { // Правильно определяем socket здесь
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
 
@@ -57,13 +69,11 @@ public class ChatClient {
                     writer.println(line); // Отправляем сообщение на сервер
                 }
             }
-        } finally {
-            executor.shutdown(); // Завершаем исполнители (потоки)
         }
     }
 
     // Останавливает клиента и закрывает соединение
-    private void stop() {
+    public void stop() {
         running = false; // Сигнал для остановки приёма сообщений
         System.out.println("Вы вышли из чата.");
     }
@@ -115,7 +125,7 @@ public class ChatClient {
     }
 
     // Метод запрашивает имя пользователя, предназначенное для идентификации в чате
-    private static String askForUsername() {
+    public static String askForUsername() {
         System.out.print("Ваше имя: ");
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         try {
