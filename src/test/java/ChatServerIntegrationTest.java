@@ -1,4 +1,4 @@
-import junit.framework.Assert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.*;
 import org.mockito.MockitoAnnotations;
 import java.io.*;
@@ -78,8 +78,8 @@ class ChatServerIntegrationTest {
         String response = in.readLine();
 
         // Проверяем, содержится ли наше сообщение в отклике
-        Assert.assertTrue("Ожидалось получение своего же сообщения обратно",
-                response.contains("Hello from mock client"));
+        assertTrue(response.contains("Hello from mock client"),
+                "Ожидалось получение своего же сообщения обратно");
 
         // Завершение сессии
         out.println("/exit");

@@ -51,6 +51,10 @@ public class ChatServer {
     /* Метод для отправки сообщения всем зарегистрированным пользователям.
     Сначала формирует строковую запись для лога, содержащую метку времени, имя отправителя и само сообщение */
     private synchronized void broadcast(String sender, String msg) {
+        if (msg == null || msg.trim().isEmpty()) {
+            return; // Игнорируем пустые сообщения
+        }
+
         LocalDateTime now = LocalDateTime.now();
         String logEntry = "[" + now.toString() + "] [" + sender + "]: " + msg + "\n";
 
@@ -82,9 +86,12 @@ public class ChatServer {
             /* Циклически читаем сообщения от клиента, пока тот не пошлет команду /exit. Все принятые
             сообщения транслируются остальным участникам чата методом broadcast() */
             String line;
-            while ((line = reader.readLine()) != null && !"/exit".equals(line)) {
-                if ("".equals(line.trim())) continue;
 
+            while ((line = reader.readLine()) != null && !"/exit".equals(line)) {
+                if (line == null || line.trim().isEmpty()) {
+                    continue; // Пропустим пустые строки
+                }
+                System.out.println("Принято от клиента: " + line); // Добавлен отладочный лог
                 broadcast(username, line);
             }
 

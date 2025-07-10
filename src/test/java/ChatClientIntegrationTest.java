@@ -1,94 +1,111 @@
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import org.mockito.*;
+import org.powermock.api.mockito.PowerMockito;
+import java.io.*;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class ChatClientIntegrationTest {
 
-    private static ChatClient client;
-    private static MockedStatic<System> systemMock;
-    private static ExecutorService executorService;
-    private static int TEST_PORT = 8080;
+    @InjectMocks
+    private ChatClient client;
 
-    @BeforeAll
-    static void setUp() throws Exception {
-        systemMock = Mockito.mockStatic(System.class);
-        executorService = Executors.newSingleThreadExecutor();
+    @Mock
+    private Socket socket;
 
-        // Имитация вывода в консоль и ввода пользователя
-        systemMock.when(() -> System.out.println(Optional.ofNullable(Mockito.any()))).thenReturn(null);
-        systemMock.when(() -> System.in.read()).thenReturn((byte)'\n');
+    @Captor
+    ArgumentCaptor<byte[]> byteCaptor;
 
-        // Создаем экземпляр клиента и стартуем его
-        client = new ChatClient("localhost", TEST_PORT, "TestUser");
-        new Thread(() -> {
-            try {
-                client.run();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
-    @AfterAll
-    static void tearDown() throws InterruptedException {
-        client.stop();
-        executorService.shutdown();
-        systemMock.close();
+    @BeforeEach
+    void setup() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
     void testClientConnectToServer() throws Exception {
-        // Проверка успешного подключения клиента к серверу
-        assertDoesNotThrow(() -> client.run());
+        // Устанавливаем поведение мока для сокета
+        when(socket.getOutputStream()).thenReturn(new ByteArrayOutputStream());
+        when(socket.getInputStream()).thenReturn(new ByteArrayInputStream("connected".getBytes(StandardCharsets.UTF_8)));
+
+        // Запускаем клиента
+        client.run();
+
+        // Проверяем, что сокет был установлен
+        assertNotNull(client.getSocket(), "Соединение с сервером не установлено");
     }
 
     @Test
     void testSendAndReceiveMessage() throws Exception {
-        // Можем отправить сообщение и удостовериться, что оно дошло до другого клиента
-        BufferedReader reader = new BufferedReader(new InputStreamReader(client.getSocket().getInputStream()));
-        PrintWriter writer = new PrintWriter(client.getSocket().getOutputStream(), true);
-
+        // Подготовим фиктивное сообщение
         String testMessage = "Hello from integration test!";
-        writer.println(testMessage);
-        writer.flush();
 
-        // Ждем подтверждения получения сообщения
-        String receivedMsg = reader.readLine();
-        assertTrue(receivedMsg.contains(testMessage), "Сообщение не было получено!");
+        // Моком OutputStream, чтобы перехватить отправленное сообщение
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        when(socket.getOutputStream()).thenReturn(baos);
+
+        // Получим BufferedReader для симуляции приема сообщения
+        ByteArrayInputStream bis = new ByteArrayInputStream("Your data here".getBytes());
+        when(socket.getInputStream()).thenReturn(bis);
+
+        // Создание BufferedReader
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+        // Имитация ввода пользователя
+        ByteArrayInputStream inputStream = new ByteArrayInputStream((testMessage + "\n").getBytes(StandardCharsets.UTF_8));
+        BufferedReader mockReader = new BufferedReader(new InputStreamReader(inputStream));
+
+        // Переопределим конструктор BufferedReader для захвата чтения
+        PowerMockito.whenNew(BufferedReader.class).withArguments(any(InputStreamReader.class)).thenReturn(mockReader);
+
+        // Начало работы клиента
+        client.run();
+
+        // Прочитаем сообщение, отправленное через сокет
+        String sentMessage = baos.toString(StandardCharsets.UTF_8.name());
+        assertTrue(sentMessage.contains(testMessage), "Сообщение не было отправлено!");
     }
 
     @Test
     void testStopClient() throws Exception {
-        // Тестируем отключение клиента
+        // Задействуем mock OutputStream для наблюдения за печатью сообщений
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PowerMockito.when(client.sysW.captureOutput()).thenReturn(outputStream);
+
+        // Останавливаем клиента
         client.stop();
+
+        // Проверяем вывод в консоль
+        String output = outputStream.toString();
+        assertTrue(output.contains("Вы вышли из чата."));
         assertFalse(client.isRunning(), "Клиент продолжает выполняться после команды exit");
     }
 
     @Test
     void testAppendLog() throws Exception {
-        // Проверка логирования действий клиента
+        // Симулируем запись в лог
         String expectedLogEntry = "Тестовая запись в лог";
         client.logEntry(expectedLogEntry);
 
+        // Проверяем факт наличия записи в файле
         var fileContent = Files.readString(Paths.get("file.log"));
         assertTrue(fileContent.contains(expectedLogEntry), "Запись в лог не была сделана!");
     }
 
     @Test
     void testAskForUsername() throws Exception {
-        // Проверка правильности запроса имени пользователя
+        // Готовим входящий поток
+        ByteArrayInputStream inputStream = new ByteArrayInputStream("TestUser\n".getBytes(StandardCharsets.UTF_8));
+        BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
+
+        // Получить имя пользователя
         String username = ChatClient.askForUsername();
         assertEquals("TestUser", username, "Имя пользователя неверно");
     }
+
 }

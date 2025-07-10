@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +18,7 @@ public class ChatClient {
     private final String USERNAME;
     private final String LOG_FILE_NAME = "file.log";
     private Socket socket;
+    protected final SystemWrapper sysW;
 
     // Булевская переменная для контроля активности клиента
     private volatile boolean running = true;
@@ -30,6 +28,7 @@ public class ChatClient {
         this.SERVER_ADDRESS = address;
         this.SERVER_PORT = port;
         this.USERNAME = username;
+        this.sysW = SystemWrapper.createDefault(); // Используется дефолтная реализаци
     }
     public Socket getSocket() {
         return socket;
@@ -58,15 +57,21 @@ public class ChatClient {
             // Запускаем поток для приёма сообщений от сервера
             executor.submit(() -> receiveMessages(reader));
 
-            // Основное циклическое чтение сообщений пользователя
+            // Берём захваченный поток вывода
+            ByteArrayOutputStream capturedOutput = sysW.captureOutput();
+            // Конвертируем его в InputStream
+            InputStream inputStream = new ByteArrayInputStream(capturedOutput.toByteArray());
+            // Вместо прямого использования System.in создаём читающий буфер поверх SystemWrapper
+            //BufferedReader userInput = new BufferedReader(new InputStreamReader(inputStream));
+
             BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
             String line;
             while (running) {
                 line = userInput.readLine();
                 if ("/exit".equalsIgnoreCase(line)) {
-                    stop(); // Останавливаем клиента
-                } else {
-                    writer.println(line); // Отправляем сообщение на сервер
+                    stop();
+                } else if (line != null && !line.trim().isEmpty()) {
+                    writer.println(line);
                 }
             }
         }
@@ -75,7 +80,7 @@ public class ChatClient {
     // Останавливает клиента и закрывает соединение
     public void stop() {
         running = false; // Сигнал для остановки приёма сообщений
-        System.out.println("Вы вышли из чата.");
+        sysW.println("Вы вышли из чата."); // Замена System.out.println()
     }
 
     /*
@@ -85,15 +90,20 @@ public class ChatClient {
     private void receiveMessages(BufferedReader reader) {
         try {
             String line;
-            while (running && (line = reader.readLine()) != null) {
-                System.out.println(line);
-                appendLog(line); // Добавляем входящее сообщение в лог
+
+            while ((line = reader.readLine()) != null && !"/exit".equals(line)) {
+                if (line == null || line.trim().isEmpty()) {
+                    continue; // Пропускаем пустые строки и null-значения
+                }
+                sysW.println(line); // Замена System.out.println() Выводим полученное сообщение
+                System.out.println("Получено сообщение: " + line); // Логируем получение сообщений
+                appendLog(line); // Записываем в журнал
             }
         } catch (IOException ex) {
             if (!running) {
-                System.out.println("Связь закрыта."); // Нормально завершилась связь
+                sysW.println("Связь закрыта."); // Замена System.out.println()
             } else {
-                System.err.println("Ошибка при чтении сообщений: " + ex.getMessage());
+                sysW.println("Ошибка при чтении сообщений: " + ex.getMessage()); // Замена System.out.println()
             }
         }
     }
@@ -120,8 +130,9 @@ public class ChatClient {
     }
 
     // Метод читает значение порта из файла настроек
-    private static int readPortFromSettings(String filename) throws IOException {
-        return Integer.parseInt(Files.readString(Path.of(filename)));
+    public static int readPortFromSettings(String filename) throws IOException {
+        String content = Files.readString(Path.of(filename));
+        return Integer.parseInt(content.trim()); // trim удаляет лишнее пространство и переводы строки
     }
 
     // Метод запрашивает имя пользователя, предназначенное для идентификации в чате
