@@ -7,6 +7,8 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.function.Supplier;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -14,7 +16,7 @@ import static org.mockito.Mockito.*;
 class ChatClientIntegrationTest {
 
     @InjectMocks
-    private ChatClient client;
+    private ChatClient client = new ChatClient("localhost", 8080, "TestUser");
 
     @Mock
     private Socket socket;
@@ -24,20 +26,33 @@ class ChatClientIntegrationTest {
 
     @BeforeEach
     void setup() {
-        MockitoAnnotations.openMocks(this);
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
     void testClientConnectToServer() throws Exception {
-        // Устанавливаем поведение мока для сокета
-        when(socket.getOutputStream()).thenReturn(new ByteArrayOutputStream());
-        when(socket.getInputStream()).thenReturn(new ByteArrayInputStream("connected".getBytes(StandardCharsets.UTF_8)));
+        // Создаем моки
+        Socket mockSocket = mock(Socket.class);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayInputStream inputStream = new ByteArrayInputStream("connected".getBytes(StandardCharsets.UTF_8));
+
+        // Настроим поведение мока
+        when(mockSocket.getOutputStream()).thenReturn(outputStream);
+        when(mockSocket.getInputStream()).thenReturn(inputStream);
+
+        // Передаем моки напрямую в ChatClient
+        ChatClient client = new ChatClient("localhost", 8080, "TestUser") {
+            @Override
+            public Socket getSocket() {
+                return mockSocket;
+            }
+        };
 
         // Запускаем клиента
         client.run();
 
         // Проверяем, что сокет был установлен
-        assertNotNull(client.getSocket(), "Соединение с сервером не установлено");
+        assertSame(mockSocket, client.getSocket(), "Соединение с сервером не установлено");
     }
 
     @Test

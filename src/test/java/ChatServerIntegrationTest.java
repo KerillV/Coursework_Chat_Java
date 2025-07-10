@@ -20,7 +20,7 @@ class ChatServerIntegrationTest {
 
     @BeforeEach
     public void initMocks() {
-        MockitoAnnotations.openMocks(this);
+        MockitoAnnotations.initMocks(this);
     }
 
     @BeforeAll
