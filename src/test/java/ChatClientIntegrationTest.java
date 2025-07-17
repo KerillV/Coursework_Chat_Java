@@ -100,17 +100,6 @@ class ChatClientIntegrationTest {
     }
 
     @Test
-    void testAppendLog() throws Exception {
-        // Симулируем запись в лог
-        String expectedLogEntry = "Тестовая запись в лог";
-        client.logEntry(expectedLogEntry);
-
-        // Проверяем факт наличия записи в файле
-        var fileContent = Files.readString(Paths.get("file.log"));
-        assertTrue(fileContent.contains(expectedLogEntry), "Запись в лог не была сделана!");
-    }
-
-    @Test
     void testAskForUsername() throws Exception {
         // Готовим входящий поток
         ByteArrayInputStream inputStream = new ByteArrayInputStream("TestUser\n".getBytes(StandardCharsets.UTF_8));

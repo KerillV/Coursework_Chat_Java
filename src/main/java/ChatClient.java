@@ -16,7 +16,7 @@ public class ChatClient {
     private final String SERVER_ADDRESS;
     private final int SERVER_PORT;
     private final String USERNAME;
-    private final String LOG_FILE_NAME = "file.log";
+    //private final String LOG_FILE_NAME = "src/main/resources/file.log";
     private Socket socket;
     protected final SystemWrapper sysW;
 
@@ -28,18 +28,15 @@ public class ChatClient {
         this.SERVER_ADDRESS = address;
         this.SERVER_PORT = port;
         this.USERNAME = username;
-        this.sysW = SystemWrapper.createDefault(); // Используется дефолтная реализаци
+        this.sysW = SystemWrapper.createDefault(); // Используется дефолтная реализация
     }
+
     public Socket getSocket() {
         return socket;
     }
 
     public boolean isRunning() {
         return running;
-    }
-
-    public void logEntry(String entry) {
-        appendLog(entry);
     }
 
     /*
@@ -96,8 +93,7 @@ public class ChatClient {
                     continue; // Пропускаем пустые строки и null-значения
                 }
                 sysW.println(line); // Замена System.out.println() Выводим полученное сообщение
-                System.out.println("Получено сообщение: " + line); // Логируем получение сообщений
-                appendLog(line); // Записываем в журнал
+                //System.out.println("Получено сообщение: " + line); // Логируем получение сообщений
             }
         } catch (IOException ex) {
             if (!running) {
@@ -108,21 +104,14 @@ public class ChatClient {
         }
     }
 
-    // Дополняет файл журнала новой записью
-    private void appendLog(String entry) {
-        try {
-            Path logPath = Paths.get(LOG_FILE_NAME);
-            Files.writeString(logPath, entry + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException ex) {
-            System.err.println("Ошибка записи в лог-файл: " + ex.getMessage());
-        }
-    }
-
     /* Главная точка входа клиента. Чтение порта из файла настроек, установка имени пользователя и запуск
      процесса взаимодействия с сервером */
     public static void main(String[] args) throws Exception {
         String settingsFileName = "settings.txt"; // Файл конфигурации
-        int port = readPortFromSettings(settingsFileName);
+        // используем механизм загрузки ресурсов, чтобы не использовать относительный путь
+        Path settingsPath = Paths.get(ChatClient.class.getClassLoader().getResource("settings.txt").toURI());
+        int port = readPortFromSettings(settingsPath.toString());
+
         String serverAddress = "localhost";
         String username = askForUsername();
 

@@ -91,7 +91,7 @@ public class ChatServer {
                 if (line == null || line.trim().isEmpty()) {
                     continue; // Пропустим пустые строки
                 }
-                System.out.println("Принято от клиента: " + line); // Добавлен отладочный лог
+                System.out.println("Принято от клиента: " + line);
                 broadcast(username, line);
             }
 
@@ -105,12 +105,11 @@ public class ChatServer {
     // Метод добавляет запись в файл журнала, дополняя его существующими данными
     private void appendLog(String entry) {
         try {
-            Path logDir = Paths.get("log");
-            if (!Files.exists(logDir)) {
-                Files.createDirectories(logDir); // создаем директорию log, если её ещё нет
-            }
 
-            Path logPath = logDir.resolve("file.log");
+            Path rootProjectDir = Paths.get(".").toAbsolutePath().normalize(); // находим текущий рабочий каталог
+            Path resourceDir = rootProjectDir.resolve("src/main/resources"); // строим путь к src/main/resources
+            Path logPath = resourceDir.resolve("file.log"); // получаем путь к файлу лога
+
             Files.writeString(logPath, entry + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException ex) {
             System.err.println("Ошибка записи в лог-файл: " + ex.getMessage());
@@ -138,8 +137,12 @@ public class ChatServer {
     // Главная точка входа приложения.
     // Читаем порт из файла настроек и запускаем сервер на указанном порту.
     public static void main(String[] args) throws Exception {
-        String settingsFileName = "settings.txt"; // Файл конфигурации
-        int port = readPortFromSettings(settingsFileName);
+        //String settingsFileName = "src/main/resources/settings.txt"; // Файл конфигурации
+        // int port = readPortFromSettings(settingsFileName);
+
+        // используем механизм загрузки ресурсов, чтобы не использовать относительный путь
+        Path settingsPath = Paths.get(ChatServer.class.getClassLoader().getResource("settings.txt").toURI());
+        int port = readPortFromSettings(settingsPath.toString());
         new ChatServer(port).run();
     }
 

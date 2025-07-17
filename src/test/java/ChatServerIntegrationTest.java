@@ -1,6 +1,8 @@
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.*;
 import org.mockito.MockitoAnnotations;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -10,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ChatServerIntegrationTest {
@@ -26,7 +29,8 @@ class ChatServerIntegrationTest {
     @BeforeAll
     static void setup() throws Exception {
         // Проверяем доступность порта перед запуском сервера
-        try (ServerSocket tempSocket = new ServerSocket(TEST_PORT)) {}
+        try (ServerSocket tempSocket = new ServerSocket(TEST_PORT)) {
+        }
         chatServer = new ChatServer(TEST_PORT);
         new Thread(() -> {
             try {
@@ -54,7 +58,7 @@ class ChatServerIntegrationTest {
         chatServer.sendMessage("testUser", message);
 
         // Проверяем наличие записи в журнале
-        var fileContent = Files.readString(Paths.get("file.log"));
+        var fileContent = Files.readString(Paths.get("src/main/resources/file.log"));
         assertTrue(fileContent.contains(message), "Сообщение не было зарегистрировано в логе!");
     }
 
@@ -89,7 +93,7 @@ class ChatServerIntegrationTest {
     @Test
     void testAppendLog() throws Exception {
         // Удалим старый лог-файл перед добавлением новой строки
-        File logFile = new File("log/file.log");
+        File logFile = new File("src/main/resources/file.log");
         if (logFile.exists()) {
             logFile.delete();
         }
@@ -99,18 +103,18 @@ class ChatServerIntegrationTest {
         chatServer.addLogEntry(expectedLogEntry);
 
         // Читаем содержимое файла
-        var fileContent = Files.readString(Paths.get("log/file.log"));
+        var fileContent = Files.readString(Paths.get("src/main/resources/file.log"));
         assertTrue(fileContent.contains(expectedLogEntry), "Запись в лог не была сделана!");
     }
 
     @Test
     void testReadPortFromSettings() throws Exception {
         // Настроим файл настроек вручную
-        Path path = Paths.get("settings.txt");
+        Path path = Paths.get("src/main/resources/settings.txt");
         Files.write(path, List.of(Integer.toString(TEST_PORT)), StandardCharsets.UTF_8);
 
         // Чтение порта
-        int port = ChatServer.readPortFromSettings("settings.txt");
+        int port = ChatServer.readPortFromSettings("src/main/resources/settings.txt");
         assertEquals(TEST_PORT, port, "Порт не соответствует ожиданию");
     }
 
